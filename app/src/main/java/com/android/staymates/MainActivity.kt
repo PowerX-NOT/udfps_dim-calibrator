@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     private var dimView: View? = null
     private var maxBacklight: Int? = null
     private var calibration: CalibrationParams? = null
+    private var brightnessAlphaMap: Map<Int, Int>? = null
     private var suppressHbmListener = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -41,9 +42,34 @@ class MainActivity : AppCompatActivity() {
         val nitsWithoutHbmInput = findViewById<TextInputEditText>(R.id.nitsWithoutHbmInput)
         val gammaInput = findViewById<TextInputEditText>(R.id.gammaInput)
         val applyCalibration = findViewById<MaterialButton>(R.id.applyCalibration)
+        val loadTable = findViewById<MaterialButton>(R.id.loadTable)
+        val tableInput = findViewById<TextInputEditText>(R.id.tableInput)
         val openSettings = findViewById<MaterialButton>(R.id.openSettings)
         val openTable = findViewById<MaterialButton>(R.id.openTable)
         val statusText = findViewById<TextView>(R.id.statusText)
+
+        loadTable.setOnClickListener {
+            val tableText = tableInput.text?.toString() ?: ""
+            if (tableText.isBlank()) {
+                statusText.text = "Paste table content first"
+                return@setOnClickListener
+            }
+
+            val loadedMap = parseFrameworkTable(tableText)
+            if (loadedMap.isEmpty()) {
+                statusText.text = "Failed to parse table. Format: <item>brightness,alpha</item>"
+                return@setOnClickListener
+            }
+
+            brightnessAlphaMap = loadedMap
+            calibration = CalibrationParams(
+                maxBacklight = loadedMap.keys.max(),
+                nitsWithHbm = 0f, // unknown when loading from table
+                nitsWithoutHbm = 0f,
+                gamma = 0f
+            )
+            statusText.text = "Loaded table with ${loadedMap.size} entries. Toggle HBM to apply."
+        }
 
         openSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -106,6 +132,9 @@ class MainActivity : AppCompatActivity() {
                 gamma = gamma,
             )
 
+            // Generate LUT table for framework dimming
+            brightnessAlphaMap = generateBrightnessAlphaMap(maxBl, nitsWith, nitsWithout, gamma)
+
             // Save to SharedPreferences for TableActivity
             getSharedPreferences(TableActivity.PREFS_NAME, MODE_PRIVATE).edit().apply {
                 putInt(TableActivity.KEY_MAX_BACKLIGHT, maxBl)
@@ -115,7 +144,7 @@ class MainActivity : AppCompatActivity() {
                 apply()
             }
 
-            statusText.text = "Calibration set. Toggle HBM to apply dimming."
+            statusText.text = "Calibration set (${brightnessAlphaMap?.size} LUT entries). Toggle HBM to apply dimming."
             applyDimOverlayIfPossible(statusText)
             updateCurrentBrightnessText(currentBrightnessValue)
         }
@@ -208,10 +237,72 @@ class MainActivity : AppCompatActivity() {
         statusText.text = "Dim overlay alpha=${String.format("%.3f", alpha)}"
     }
 
+    private fun parseFrameworkTable(tableText: String): Map<Int, Int> {
+        val map = mutableMapOf<Int, Int>()
+        // Pattern to match <item>brightness,alpha</item>
+        val regex = "<item>(\\d+),(\\d+)</item>".toRegex()
+        val matches = regex.findAll(tableText)
+        
+        for (match in matches) {
+            val brightness = match.groupValues[1].toInt()
+            val alpha = match.groupValues[2].toInt()
+            map[brightness] = alpha.coerceIn(0, 255)
+        }
+        
+        return map
+    }
+
     private fun computeCurrentAlphaOrNull(): Float? {
-        val params = calibration ?: return null
+        val map = brightnessAlphaMap ?: return null
         val currentBrightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()?.toIntOrNull() ?: return null
-        return computeAlphaFromFormula(currentBrightness, params)
+        return lookupOrInterpolateAlpha(currentBrightness, map)
+    }
+
+    private fun lookupOrInterpolateAlpha(brightness: Int, map: Map<Int, Int>): Float {
+        // Exact match
+        map[brightness]?.let { return it / 255f }
+
+        // Find surrounding entries for interpolation
+        val lowerEntry = map.entries.lastOrNull { it.key <= brightness }
+        val upperEntry = map.entries.firstOrNull { it.key >= brightness }
+
+        return when {
+            lowerEntry == null && upperEntry == null -> 0f
+            lowerEntry == null -> upperEntry!!.value / 255f
+            upperEntry == null -> lowerEntry.value / 255f
+            lowerEntry.key == upperEntry.key -> lowerEntry.value / 255f
+            else -> {
+                // Linear interpolation
+                val (b1, a1) = lowerEntry.toPair()
+                val (b2, a2) = upperEntry.toPair()
+                val alpha = a1 + (brightness - b1) * (a2 - a1) / (b2 - b1)
+                alpha / 255f
+            }
+        }
+    }
+
+    private fun generateBrightnessAlphaMap(
+        maxBacklight: Int,
+        nitsWithHbm: Float,
+        nitsWithoutHbm: Float,
+        gamma: Float
+    ): Map<Int, Int> {
+        val backlightRatio = (maxBacklight.toFloat() * nitsWithHbm) / nitsWithoutHbm
+
+        val a2Values = when (maxBacklight) {
+            2047 -> listOf(0, 3, 13, 31, 58, 96, 143, 200, 269, 348, 439, 551, 667, 794, 934, 1086, 1250, 1427, 1618, 1821, 2047)
+            4095 -> listOf(0, 6, 26, 62, 116, 192, 286, 400, 538, 696, 878, 1102, 1334, 1588, 1868, 2172, 2500, 2854, 3236, 3642, 4095)
+            1023 -> listOf(0, 1, 16, 33, 48, 97, 146, 194, 243, 292, 341, 389, 438, 487, 535, 584, 633, 682, 730, 779, 828, 876, 925, 974, 1023)
+            else -> (0..maxBacklight step maxBacklight / 20).toList()
+        }
+
+        return a2Values.associate { a2 ->
+            val base = (a2.toFloat() / backlightRatio).coerceAtLeast(0.000001f)
+            val pow = base.toDouble().pow(1.0 / gamma.toDouble()).toFloat()
+            val alpha255 = (1f - pow) * 255f
+            val alpha = alpha255.toInt().coerceIn(0, 255)
+            a2 to alpha
+        }
     }
 
     private fun addOrUpdateDimOverlay(alpha: Float) {
@@ -246,8 +337,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     private fun computeAlphaFromFormula(brightness: Int, params: CalibrationParams): Float {
-        // Mirrors 1.py: result = (1 - (A2 / backlight_ratio)^(1/gamma)) * 255
-        // where backlight_ratio = (max_backlight * nits_with_hbm) / nits_without_hbm
+        // Kept for compatibility - but now we primarily use LUT lookup
         val backlightRatio = (params.maxBacklight.toFloat() * params.nitsWithHbm) / params.nitsWithoutHbm
         val a2 = brightness.toFloat().coerceAtLeast(0.0001f)
         val base = (a2 / backlightRatio).coerceAtLeast(0.000001f)
