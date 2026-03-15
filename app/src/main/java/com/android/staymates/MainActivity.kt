@@ -111,6 +111,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val hbmEnabled = suRead(HBM_NODE)?.trim() == "1"
+        if (!hbmEnabled) {
+            removeDimOverlay()
+            return
+        }
+
         val currentBrightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()?.toIntOrNull()
         if (currentBrightness == null) {
             statusText.text = "Failed to read current brightness"
