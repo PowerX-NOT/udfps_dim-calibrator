@@ -124,3 +124,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 - **HBM node write fails**
   - Fix the HBM node path in Settings and ensure it is writable with root.
+
+## Credits
+
+- https://github.com/ivecera for logic reference: https://github.com/LineageOS/android_kernel_xiaomi_sdm710/commit/022c8af26daa76d94ce43823a9d4cd656f413c18
