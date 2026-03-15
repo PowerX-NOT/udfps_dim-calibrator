@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val maxBrightnessValue = findViewById<TextView>(R.id.maxBrightnessValue)
+        val currentBrightnessValue = findViewById<TextView>(R.id.currentBrightnessValue)
         val hbmToggle = findViewById<SwitchMaterial>(R.id.hbmToggle)
         val nitsWithHbmInput = findViewById<TextInputEditText>(R.id.nitsWithHbmInput)
         val nitsWithoutHbmInput = findViewById<TextInputEditText>(R.id.nitsWithoutHbmInput)
@@ -59,6 +60,8 @@ class MainActivity : AppCompatActivity() {
             maxBrightnessValue.text = "Max brightness: (failed to read)"
         }
 
+        updateCurrentBrightnessText(currentBrightnessValue)
+
         // Initialize HBM toggle from sysfs
         val hbmRaw = suRead(HBM_NODE)
         if (hbmRaw != null) {
@@ -69,7 +72,7 @@ class MainActivity : AppCompatActivity() {
 
         hbmToggle.setOnCheckedChangeListener { _, isChecked ->
             if (suppressHbmListener) return@setOnCheckedChangeListener
-            onHbmToggleRequested(isChecked, statusText)
+            onHbmToggleRequested(isChecked, statusText, currentBrightnessValue)
         }
 
         applyCalibration.setOnClickListener {
@@ -100,10 +103,11 @@ class MainActivity : AppCompatActivity() {
 
             statusText.text = "Calibration set. Toggle HBM to apply dimming."
             applyDimOverlayIfPossible(statusText)
+            updateCurrentBrightnessText(currentBrightnessValue)
         }
     }
 
-    private fun onHbmToggleRequested(enable: Boolean, statusText: TextView) {
+    private fun onHbmToggleRequested(enable: Boolean, statusText: TextView, currentBrightnessValue: TextView) {
         val hasFrameworkDimming = calibration != null
         val value = if (enable) "1" else "0"
 
@@ -111,6 +115,7 @@ class MainActivity : AppCompatActivity() {
             val ok = suWrite(HBM_NODE, value)
             statusText.text = if (ok) "HBM set to $value" else "Failed to set HBM (root?)"
             applyDimOverlayIfPossible(statusText)
+            updateCurrentBrightnessText(currentBrightnessValue)
             return
         }
 
@@ -127,6 +132,7 @@ class MainActivity : AppCompatActivity() {
                     val ok = suWrite(HBM_NODE, "1")
                     statusText.text = if (ok) "HBM set to 1" else "Failed to set HBM (root?)"
                     // Keep current dim layer; further updates happen on next user action.
+                    updateCurrentBrightnessText(currentBrightnessValue)
                 }
             }, delayMs)
         } else {
@@ -136,11 +142,22 @@ class MainActivity : AppCompatActivity() {
                 val ok = suWrite(HBM_NODE, "0")
                 statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
+                updateCurrentBrightnessText(currentBrightnessValue)
             } ?: run {
                 val ok = suWrite(HBM_NODE, "0")
                 statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
+                updateCurrentBrightnessText(currentBrightnessValue)
             }
+        }
+    }
+
+    private fun updateCurrentBrightnessText(view: TextView) {
+        val brightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()
+        view.text = if (brightness != null) {
+            "Current brightness: $brightness"
+        } else {
+            "Current brightness: (failed to read)"
         }
     }
 
