@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity() {
         ensureRoot(statusText)
 
         // Load max_backlight from sysfs and show it.
-        val maxBrightnessRaw = suRead(MAX_BRIGHTNESS_NODE)
+        val maxBrightnessRaw = suRead(getMaxBrightnessNode())
         if (maxBrightnessRaw != null) {
             val parsed = maxBrightnessRaw.trim().toIntOrNull()
             maxBacklight = parsed
@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         updateCurrentBrightnessText(currentBrightnessValue)
 
         // Initialize HBM toggle from sysfs
-        val hbmRaw = suRead(HBM_NODE)
+        val hbmRaw = suRead(getHbmNode())
         if (hbmRaw != null) {
             suppressHbmListener = true
             hbmToggle.isChecked = hbmRaw.trim() == "1"
@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         val value = if (enable) "1" else "0"
 
         if (!hasFrameworkDimming) {
-            val ok = suWrite(HBM_NODE, value)
+            val ok = suWrite(getHbmNode(), value)
             val source = dimTableSource ?: "none"
             statusText.text = "HBM set to $value (dim: $source)"
             applyDimOverlayIfPossible(statusText)
@@ -176,7 +176,7 @@ class MainActivity : AppCompatActivity() {
             mainHandler.postDelayed({
                 addOrUpdateDimOverlay(alpha)
                 dimView?.post {
-                    val ok = suWrite(HBM_NODE, "1")
+                    val ok = suWrite(getHbmNode(), "1")
                     val source = dimTableSource ?: "formula"
                     statusText.text = "HBM set to 1 (dim: $source)"
                     // Keep current dim layer; further updates happen on next user action.
@@ -187,12 +187,12 @@ class MainActivity : AppCompatActivity() {
             // Disable HBM first (next frame), then remove dim layer after configured delay.
             val delayMs = getDimDelayMs()
             dimView?.post {
-                val ok = suWrite(HBM_NODE, "0")
+                val ok = suWrite(getHbmNode(), "0")
                 statusText.text = "HBM set to 0"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
                 updateCurrentBrightnessText(currentBrightnessValue)
             } ?: run {
-                val ok = suWrite(HBM_NODE, "0")
+                val ok = suWrite(getHbmNode(), "0")
                 statusText.text = "HBM set to 0"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
                 updateCurrentBrightnessText(currentBrightnessValue)
@@ -201,7 +201,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateCurrentBrightnessText(view: TextView) {
-        val brightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()
+        val brightness = suRead(getCurrentBrightnessNode())?.trim()
         view.text = if (brightness != null) {
             "Current brightness: $brightness"
         } else {
@@ -227,7 +227,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val hbmEnabled = suRead(HBM_NODE)?.trim() == "1"
+        val hbmEnabled = suRead(getHbmNode())?.trim() == "1"
         if (!hbmEnabled) {
             removeDimOverlay()
             return
@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun computeCurrentAlphaOrNull(): Float? {
         val map = brightnessAlphaMap ?: return null
-        val currentBrightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()?.toIntOrNull() ?: return null
+        val currentBrightness = suRead(getCurrentBrightnessNode())?.trim()?.toIntOrNull() ?: return null
         return lookupOrInterpolateAlpha(currentBrightness, map)
     }
 
@@ -376,9 +376,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private companion object {
-        private const val CURRENT_BRIGHTNESS_NODE = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/brightness"
-        private const val MAX_BRIGHTNESS_NODE = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/backlight/panel0-backlight/max_brightness"
-        private const val HBM_NODE = "/sys/kernel/oplus_display/hbm"
+    private fun getCurrentBrightnessNode(): String {
+        return getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getString(SettingsActivity.KEY_CURRENT_BRIGHTNESS_NODE, SettingsActivity.DEFAULT_CURRENT_BRIGHTNESS_NODE)
+            ?: SettingsActivity.DEFAULT_CURRENT_BRIGHTNESS_NODE
+    }
+
+    private fun getMaxBrightnessNode(): String {
+        return getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getString(SettingsActivity.KEY_MAX_BRIGHTNESS_NODE, SettingsActivity.DEFAULT_MAX_BRIGHTNESS_NODE)
+            ?: SettingsActivity.DEFAULT_MAX_BRIGHTNESS_NODE
+    }
+
+    private fun getHbmNode(): String {
+        return getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+            .getString(SettingsActivity.KEY_HBM_NODE, SettingsActivity.DEFAULT_HBM_NODE)
+            ?: SettingsActivity.DEFAULT_HBM_NODE
     }
 }

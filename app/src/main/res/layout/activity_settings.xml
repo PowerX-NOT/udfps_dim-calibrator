@@ -39,6 +39,102 @@
             android:inputType="number" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <TextView
+        android:id="@+id/currentBrightnessLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="Current brightness node"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dimDelayLayout" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/currentBrightnessLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/currentBrightnessLabel">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/currentBrightnessInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="/sys/.../brightness"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:id="@+id/maxBrightnessLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:text="Max brightness node"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/currentBrightnessLayout" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/maxBrightnessLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/maxBrightnessLabel">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/maxBrightnessInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="/sys/.../max_brightness"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:id="@+id/hbmNodeLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:text="HBM node"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/maxBrightnessLayout" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/hbmNodeLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/hbmNodeLabel">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/hbmNodeInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="/sys/.../hbm"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/saveButton"
         android:layout_width="0dp"
@@ -49,7 +145,7 @@
         android:text="Save"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/dimDelayLayout" />
+        app:layout_constraintTop_toBottomOf="@id/hbmNodeLayout" />
 
     <TextView
         android:id="@+id/statusText"
