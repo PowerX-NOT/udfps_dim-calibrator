@@ -2,6 +2,10 @@
 
 Android app to help calibrate Under-Display Fingerprint Scanner (UDFPS) dimming behavior by controlling High Brightness Mode (HBM) and applying a fullscreen dim overlay whose alpha is derived from a brightness→alpha LUT.
 
+## Download
+
+- **APK (release)**: https://github.com/PowerX-NOT/udfps_dim-calibrator/releases/download/initial/app-debug.apk
+
 ## Requirements
 
 - Root access (`su`) is required to read/write sysfs nodes.
