@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private var maxBacklight: Int? = null
     private var calibration: CalibrationParams? = null
     private var brightnessAlphaMap: Map<Int, Int>? = null
+    private var dimTableSource: String? = null
     private var suppressHbmListener = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -62,6 +63,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             brightnessAlphaMap = loadedMap
+            dimTableSource = "loaded (${loadedMap.size} entries)"
             calibration = CalibrationParams(
                 maxBacklight = loadedMap.keys.max(),
                 nitsWithHbm = 0f, // unknown when loading from table
@@ -134,6 +136,7 @@ class MainActivity : AppCompatActivity() {
 
             // Generate LUT table for framework dimming
             brightnessAlphaMap = generateBrightnessAlphaMap(maxBl, nitsWith, nitsWithout, gamma)
+            dimTableSource = "generated (nits:${nitsWith}/${nitsWithout}, g:${gamma})"
 
             // Save to SharedPreferences for TableActivity
             getSharedPreferences(TableActivity.PREFS_NAME, MODE_PRIVATE).edit().apply {
@@ -156,7 +159,8 @@ class MainActivity : AppCompatActivity() {
 
         if (!hasFrameworkDimming) {
             val ok = suWrite(HBM_NODE, value)
-            statusText.text = if (ok) "HBM set to $value" else "Failed to set HBM (root?)"
+            val source = dimTableSource ?: "none"
+            statusText.text = "HBM set to $value (dim: $source)"
             applyDimOverlayIfPossible(statusText)
             updateCurrentBrightnessText(currentBrightnessValue)
             return
@@ -173,7 +177,8 @@ class MainActivity : AppCompatActivity() {
                 addOrUpdateDimOverlay(alpha)
                 dimView?.post {
                     val ok = suWrite(HBM_NODE, "1")
-                    statusText.text = if (ok) "HBM set to 1" else "Failed to set HBM (root?)"
+                    val source = dimTableSource ?: "formula"
+                    statusText.text = "HBM set to 1 (dim: $source)"
                     // Keep current dim layer; further updates happen on next user action.
                     updateCurrentBrightnessText(currentBrightnessValue)
                 }
@@ -183,12 +188,12 @@ class MainActivity : AppCompatActivity() {
             val delayMs = getDimDelayMs()
             dimView?.post {
                 val ok = suWrite(HBM_NODE, "0")
-                statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
+                statusText.text = "HBM set to 0"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
                 updateCurrentBrightnessText(currentBrightnessValue)
             } ?: run {
                 val ok = suWrite(HBM_NODE, "0")
-                statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
+                statusText.text = "HBM set to 0"
                 mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
                 updateCurrentBrightnessText(currentBrightnessValue)
             }
