@@ -125,6 +125,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/applyCalibration" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openTable"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:text="Generate Table"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/openSettings" />
+
     <TextView
         android:id="@+id/statusText"
         android:layout_width="0dp"
@@ -137,6 +149,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/openSettings" />
+        app:layout_constraintTop_toBottomOf="@id/openTable" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

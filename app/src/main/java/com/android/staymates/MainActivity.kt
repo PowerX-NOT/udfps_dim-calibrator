@@ -42,10 +42,15 @@ class MainActivity : AppCompatActivity() {
         val gammaInput = findViewById<TextInputEditText>(R.id.gammaInput)
         val applyCalibration = findViewById<MaterialButton>(R.id.applyCalibration)
         val openSettings = findViewById<MaterialButton>(R.id.openSettings)
+        val openTable = findViewById<MaterialButton>(R.id.openTable)
         val statusText = findViewById<TextView>(R.id.statusText)
 
         openSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        openTable.setOnClickListener {
+            startActivity(Intent(this, TableActivity::class.java))
         }
 
         ensureRoot(statusText)
@@ -100,6 +105,15 @@ class MainActivity : AppCompatActivity() {
                 nitsWithoutHbm = nitsWithout,
                 gamma = gamma,
             )
+
+            // Save to SharedPreferences for TableActivity
+            getSharedPreferences(TableActivity.PREFS_NAME, MODE_PRIVATE).edit().apply {
+                putInt(TableActivity.KEY_MAX_BACKLIGHT, maxBl)
+                putFloat(TableActivity.KEY_NITS_WITH_HBM, nitsWith)
+                putFloat(TableActivity.KEY_NITS_WITHOUT_HBM, nitsWithout)
+                putFloat(TableActivity.KEY_GAMMA, gamma)
+                apply()
+            }
 
             statusText.text = "Calibration set. Toggle HBM to apply dimming."
             applyDimOverlayIfPossible(statusText)
