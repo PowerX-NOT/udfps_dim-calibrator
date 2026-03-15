@@ -12,6 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.StayMates">
         <activity
+            android:name="dev.udfps.calibrator.SettingsActivity"
+            android:exported="false" />
+        <activity
             android:name="dev.udfps.calibrator.MainActivity"
             android:exported="true">
             <intent-filter>

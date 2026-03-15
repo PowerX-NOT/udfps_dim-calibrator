@@ -101,6 +101,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/gammaLayout" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openSettings"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:text="Settings"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/applyCalibration" />
+
     <TextView
         android:id="@+id/statusText"
         android:layout_width="0dp"
@@ -113,6 +125,6 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/applyCalibration" />
+        app:layout_constraintTop_toBottomOf="@id/openSettings" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

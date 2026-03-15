@@ -1,7 +1,10 @@
 package dev.udfps.calibrator
 
 import android.graphics.Color
+import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -18,6 +21,8 @@ class MainActivity : AppCompatActivity() {
     private var dimView: View? = null
     private var maxBacklight: Int? = null
     private var calibration: CalibrationParams? = null
+    private var suppressHbmListener = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +40,12 @@ class MainActivity : AppCompatActivity() {
         val nitsWithoutHbmInput = findViewById<TextInputEditText>(R.id.nitsWithoutHbmInput)
         val gammaInput = findViewById<TextInputEditText>(R.id.gammaInput)
         val applyCalibration = findViewById<MaterialButton>(R.id.applyCalibration)
+        val openSettings = findViewById<MaterialButton>(R.id.openSettings)
         val statusText = findViewById<TextView>(R.id.statusText)
+
+        openSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
 
         ensureRoot(statusText)
 
@@ -52,20 +62,14 @@ class MainActivity : AppCompatActivity() {
         // Initialize HBM toggle from sysfs
         val hbmRaw = suRead(HBM_NODE)
         if (hbmRaw != null) {
+            suppressHbmListener = true
             hbmToggle.isChecked = hbmRaw.trim() == "1"
+            suppressHbmListener = false
         }
 
         hbmToggle.setOnCheckedChangeListener { _, isChecked ->
-            val value = if (isChecked) "1" else "0"
-            val ok = suWrite(HBM_NODE, value)
-            statusText.text = if (ok) {
-                "HBM set to $value"
-            } else {
-                "Failed to set HBM (root?)"
-            }
-
-            // When toggled, immediately (re)apply dim overlay based on calibration if present.
-            applyDimOverlayIfPossible(statusText)
+            if (suppressHbmListener) return@setOnCheckedChangeListener
+            onHbmToggleRequested(isChecked, statusText)
         }
 
         applyCalibration.setOnClickListener {
@@ -99,6 +103,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun onHbmToggleRequested(enable: Boolean, statusText: TextView) {
+        val hasFrameworkDimming = calibration != null
+        val value = if (enable) "1" else "0"
+
+        if (!hasFrameworkDimming) {
+            val ok = suWrite(HBM_NODE, value)
+            statusText.text = if (ok) "HBM set to $value" else "Failed to set HBM (root?)"
+            applyDimOverlayIfPossible(statusText)
+            return
+        }
+
+        if (enable) {
+            // Delay dim layer slightly if configured, then enable HBM on the next frame.
+            val alpha = computeCurrentAlphaOrNull() ?: run {
+                statusText.text = "Failed to read current brightness"
+                return
+            }
+            val delayMs = getDimDelayMs()
+            mainHandler.postDelayed({
+                addOrUpdateDimOverlay(alpha)
+                dimView?.post {
+                    val ok = suWrite(HBM_NODE, "1")
+                    statusText.text = if (ok) "HBM set to 1" else "Failed to set HBM (root?)"
+                    // Keep current dim layer; further updates happen on next user action.
+                }
+            }, delayMs)
+        } else {
+            // Disable HBM first (next frame), then remove dim layer after configured delay.
+            val delayMs = getDimDelayMs()
+            dimView?.post {
+                val ok = suWrite(HBM_NODE, "0")
+                statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
+                mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
+            } ?: run {
+                val ok = suWrite(HBM_NODE, "0")
+                statusText.text = if (ok) "HBM set to 0" else "Failed to set HBM (root?)"
+                mainHandler.postDelayed({ removeDimOverlay() }, delayMs)
+            }
+        }
+    }
+
+    private fun getDimDelayMs(): Long {
+        val prefs = getSharedPreferences(SettingsActivity.PREFS_NAME, MODE_PRIVATE)
+        return prefs.getLong(SettingsActivity.KEY_DIM_DELAY_MS, SettingsActivity.DEFAULT_DIM_DELAY_MS)
+            .coerceAtLeast(0L)
+    }
+
     private fun ensureRoot(statusText: TextView) {
         val ok = suExec("id")?.first == true
         statusText.text = if (ok) "Root granted" else "Root not granted (su failed)"
@@ -117,17 +168,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val currentBrightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()?.toIntOrNull()
-        if (currentBrightness == null) {
+        val alpha = computeCurrentAlphaOrNull() ?: run {
             statusText.text = "Failed to read current brightness"
             removeDimOverlay()
             return
         }
-
-        val brightness = currentBrightness
-        val alpha = computeAlphaFromFormula(brightness, params)
         addOrUpdateDimOverlay(alpha)
         statusText.text = "Dim overlay alpha=${String.format("%.3f", alpha)}"
+    }
+
+    private fun computeCurrentAlphaOrNull(): Float? {
+        val params = calibration ?: return null
+        val currentBrightness = suRead(CURRENT_BRIGHTNESS_NODE)?.trim()?.toIntOrNull() ?: return null
+        return computeAlphaFromFormula(currentBrightness, params)
     }
 
     private fun addOrUpdateDimOverlay(alpha: Float) {
