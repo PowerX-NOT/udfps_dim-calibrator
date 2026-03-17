@@ -10,7 +10,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.StayMates">
+        android:theme="@style/Theme.UDFPSCalibrator">
         <activity
             android:name="dev.udfps.calibrator.SettingsActivity"
             android:exported="false" />
